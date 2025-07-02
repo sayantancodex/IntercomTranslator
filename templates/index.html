@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Multilingual Chat</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Custom scrollbar */
+    #chat::-webkit-scrollbar {
+      width: 6px;
+    }
+    #chat {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+    }
+    #chat::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    #chat::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 3px;
+    }
+    #chat::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    /* WhatsApp-inspired message bubbles */
+    .sent {
+      background-color: #DCF8C6;
+      color: #000;
+      border-radius: 10px 10px 0 10px;
+    }
+    .received {
+      background-color: #a2ffdc;
+      color: #000;
+      border-radius: 10px 10px 10px 0;
+    }
+
+    /* Fade transition for screens */
+    .screen {
+      transition: opacity 0.3s ease-in-out;
+    }
+
+    .hidden {
+      opacity: 0;
+      display: none;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col font-sans">
+
+  <!-- Login Screen -->
+  <div id="login-screen" class="screen w-full max-w-3xl mx-auto bg-white shadow-md flex flex-col h-screen">
+    <div class="bg-teal-600 p-4 flex items-center">
+      <h1 class="text-xl font-semibold text-white">Multilingual Chat</h1>
+    </div>
+    <div class="flex-1 flex items-center justify-center p-4">
+      <div class="w-full max-w-md">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-6 text-center">Join the Chat</h2>
+        <div class="flex flex-col gap-4">
+          <input type="text" id="username" placeholder="Enter your name" class="p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500">
+          <select id="language" class="p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
+            <option value="en" class="bg-white">English</option>
+            <option value="bn" class="bg-white">Bengali</option>
+          </select>
+          <button onclick="joinChat()" class="bg-teal-500 text-white px-6 py-3 rounded-full hover:bg-teal-600 transition-all duration-200">Join Chat</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Screen -->
+  <div id="chat-screen" class="screen w-full max-w-3xl mx-auto bg-white shadow-md flex flex-col h-screen hidden">
+    <div class="bg-teal-600 p-4 flex items-center">
+      <h1 class="text-xl font-semibold text-white">WELCOME <span id="myText"></span> </h1>
+    </div>
+    <div class="flex-1 p-4 overflow-y-auto" id="chat">
+      <div class="flex justify-center items-center h-full text-gray-500" id="chat-placeholder">Start chatting...</div>
+    </div>
+    <div class="p-4 bg-gray-50 border-t border-gray-200">
+      <div class="flex gap-3">
+        <input type="text" id="message" placeholder="Type a message..." class="flex-1 p-2.5 bg-white border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500">
+        <button onclick="sendMessage()" class="bg-teal-500 text-white px-5 py-2.5 rounded-full hover:bg-teal-600 transition-all duration-200">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const socket = io();
+    let username, language;
+
+    function joinChat() {
+      username = document.getElementById('username').value;
+      language = document.getElementById('language').value;
+      if (language === 'en') {
+        var lan = 'English';
+      } else if (language === 'bn') {
+        var lan = 'Bengali';
+      }
+      document.getElementById("myText").innerHTML = username + ", Chosen Language: " + lan;
+      if (username && language) {
+        socket.emit('join', { username, language });
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('chat-screen').classList.remove('hidden');
+        document.getElementById('chat-placeholder').style.display = 'none';
+        console.log(`Joined chat as ${username} with language ${language}`);
+      } else {
+        alert('Please enter a username and select a language.');
+      }
+    }
+
+    function sendMessage() {
+      const message = document.getElementById('message').value;
+      if (message) {
+        socket.emit('message', { username, message, language });
+        document.getElementById('message').value = '';
+        console.log(`Sent message: ${message}`);
+      }
+    }
+
+    socket.on('message', (data) => {
+      const chat = document.getElementById('chat');
+      const isOwnMessage = data.username === username;
+
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message p-3 ${isOwnMessage ? 'sent ml-auto' : 'received mr-auto'} max-w-[70%] mb-2 shadow-sm rounded-lg`;
+
+      const userLine = document.createElement('div');
+      userLine.className = 'font-semibold mb-1';
+      userLine.textContent = `${data.username}:`;
+
+      const translatedText = document.createElement('div');
+      translatedText.textContent = data.message;
+      translatedText.classList.add('translated');
+
+      const originalText = document.createElement('div');
+      originalText.textContent = data.original || data.message;
+      originalText.classList.add('original', 'hidden');
+
+      const toggleBtn = document.createElement('button');
+      toggleBtn.className = 'text-sm text-blue-600 mt-2 hover:underline focus:outline-none';
+      toggleBtn.textContent = 'Show Original';
+
+      toggleBtn.onclick = () => {
+        const showingOriginal = !originalText.classList.contains('hidden');
+        originalText.classList.toggle('hidden', showingOriginal);
+        translatedText.classList.toggle('hidden', !showingOriginal);
+        toggleBtn.textContent = showingOriginal ? 'Show Original' : 'Show Translated';
+      };
+
+      messageDiv.appendChild(userLine);
+      messageDiv.appendChild(translatedText);
+      if (data.original && data.original !== data.message) {
+        messageDiv.appendChild(originalText);
+        messageDiv.appendChild(toggleBtn);
+      }
+
+      chat.appendChild(messageDiv);
+      chat.scrollTop = chat.scrollHeight;
+
+      console.log(`Received message from ${data.username}: ${data.message} (original: ${data.original})`);
+    });
+
+    socket.on('connect', () => {
+      console.log('Connected to server');
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from server');
+    });
+
+    document.getElementById('message').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+  </script>
+</body>
+</html>

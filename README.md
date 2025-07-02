@@ -1,6 +1,3 @@
-```markdown
-
-```
 
 # 🗣️ Multilingual Chat App (English ↔ Bengali)
 

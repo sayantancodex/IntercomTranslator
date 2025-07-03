@@ -50,6 +50,40 @@
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
     }
 
+    /* Hover effect for original text */
+    .message {
+      position: relative;
+      overflow: hidden;
+    }
+    .translated {
+      transition: opacity 0.2s ease;
+      padding: 1rem;
+    }
+    .original {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      padding: inherit;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-start;
+      text-align: left;
+      background: inherit;
+      border-radius: inherit;
+      color: #1f2937;
+      font-style: italic;
+    }
+    .message:hover .translated {
+      opacity: 0;
+    }
+    .message:hover .original {
+      opacity: 1;
+    }
+
     /* Screen transitions */
     .screen {
       transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
@@ -108,7 +142,7 @@
           <button onclick="joinChat()" class="bg-teal-500 text-white px-6 py-4 rounded-full hover:bg-teal-600 transition-all duration-200 text-lg font-semibold">Join Chat</button>
         </div>
       </div>
-</div>
+    </div>
   </div>
 
   <!-- Chat Screen -->
@@ -209,30 +243,16 @@
       userLine.textContent = `${data.username}:`;
 
       const translatedText = document.createElement('div');
+      translatedText.className = 'translated text-base';
       translatedText.textContent = data.message;
-      translatedText.classList.add('translated', 'text-base');
 
       const originalText = document.createElement('div');
+      originalText.className = 'original text-base';
       originalText.textContent = data.original || data.message;
-      originalText.classList.add('original', 'hidden', 'text-sm', 'italic', 'text-gray-600');
-
-      const toggleBtn = document.createElement('button');
-      toggleBtn.className = 'text-xs text-teal-600 mt-2 hover:underline focus:outline-none';
-      toggleBtn.textContent = 'Show Original';
-
-      toggleBtn.onclick = () => {
-        const showingOriginal = !originalText.classList.contains('hidden');
-        originalText.classList.toggle('hidden', showingOriginal);
-        translatedText.classList.toggle('hidden', !showingOriginal);
-        toggleBtn.textContent = showingOriginal ? 'Show Original' : 'Show Translated';
-      };
 
       messageDiv.appendChild(userLine);
       messageDiv.appendChild(translatedText);
-      if (data.original && data.original !== data.message) {
-        messageDiv.appendChild(originalText);
-        messageDiv.appendChild(toggleBtn);
-      }
+      messageDiv.appendChild(originalText);
 
       chat.appendChild(messageDiv);
       chat.scrollTop = chat.scrollHeight;

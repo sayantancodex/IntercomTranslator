@@ -23,33 +23,37 @@ LANGUAGE_CODES = {
     'bn': 'Bengali'
 }
 
-# Load translation mappings from JSON file
 def load_mappings():
+    mappings_file = 'translation_mappings.json'
+    default_mappings = {"benglish_to_bengali": {}, "english_to_bengali": {}}
+    if not os.path.exists(mappings_file):
+        try:
+            with open(mappings_file, 'w', encoding='utf-8') as f:
+                json.dump(default_mappings, f, ensure_ascii=False, indent=4)
+            logger.info(f"Created empty {mappings_file}")
+        except Exception as e:
+            logger.error(f"Error creating {mappings_file}: {e}")
+            return default_mappings
     try:
-        with open('translation_mappings.json', 'r', encoding='utf-8') as f:
+        with open(mappings_file, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
         logger.error(f"Error loading mappings: {e}")
-        return {"benglish_to_bengali": {}, "english_to_bengali": {}}
+        return default_mappings
 
 MAPPINGS = load_mappings()
 BENGLISH_TO_BENGALI = MAPPINGS.get("benglish_to_bengali", {})
 ENGLISH_TO_BENGALI = MAPPINGS.get("english_to_bengali", {})
 
-# Detect if input is Benglish (Latin characters)
 def is_benglish(text):
     return bool(re.match(r'^[a-zA-Z\s\W]+$', text))
 
-# Transliterate Benglish to Bengali script
 def benglish_to_bengali(text):
     try:
-        # Check for full phrase in mappings
         if text.lower() in BENGLISH_TO_BENGALI:
             bengali_text = BENGLISH_TO_BENGALI[text.lower()]
             logger.debug(f"Transliterated '{text}' to '{bengali_text}' (from mappings)")
             return bengali_text
-        
-        # Split into words for partial matching
         words = text.lower().split()
         transliterated_words = []
         for word in words:
@@ -61,7 +65,6 @@ def benglish_to_bengali(text):
         logger.error(f"Transliteration error: {e}")
         return text
 
-# Translate English to natural Bengali
 def translate_to_bengali(text):
     if text.lower() in ENGLISH_TO_BENGALI:
         translated_text = ENGLISH_TO_BENGALI[text.lower()]
@@ -74,6 +77,16 @@ def translate_to_bengali(text):
         return translated_text
     except Exception as e:
         logger.error(f"English to Bengali translation error: {e}")
+        return text
+
+def translate_to_english(text):
+    try:
+        translator = GoogleTranslator(source='bn', target='en')
+        translated_text = translator.translate(text)
+        logger.debug(f"GoogleTranslated Bengali '{text}' to '{translated_text}'")
+        return translated_text
+    except Exception as e:
+        logger.error(f"Bengali to English translation error: {e}")
         return text
 
 @app.route('/')
@@ -187,6 +200,7 @@ def handle_message(data):
     
     # Preprocess message
     processed_message = message
+    original_message = message
     if sender_lang == 'bn' and is_benglish(message):
         processed_message = benglish_to_bengali(message)
     
@@ -204,24 +218,21 @@ def handle_message(data):
         recipient_lang = users.get(recipient_sid, {}).get('language', 'en')
         recipient_username = users.get(recipient_sid, {}).get('username', 'Unknown')
         translated_message = processed_message
+        hover_message = original_message
         
         if sender_lang != recipient_lang:
             if sender_lang == 'en' and recipient_lang == 'bn':
                 translated_message = translate_to_bengali(processed_message)
+                hover_message = original_message  # English original for Bengali recipient
             elif sender_lang == 'bn' and recipient_lang == 'en':
-                try:
-                    translator = GoogleTranslator(source='bn', target='en')
-                    translated_message = translator.translate(processed_message)
-                    logger.debug(f"Translated '{processed_message}' from Bengali to English: {translated_message}")
-                except Exception as e:
-                    logger.error(f"Translation error: {e}")
-                    translated_message = processed_message
+                translated_message = translate_to_english(processed_message)
+                hover_message = processed_message  # Bengali processed for English recipient
         
-        logger.debug(f"Sending to {recipient_username} (SID: {recipient_sid}, Lang: {recipient_lang}): {translated_message}")
+        logger.debug(f"Sending to {recipient_username} (SID: {recipient_sid}, Lang: {recipient_lang}): {translated_message} (hover: {hover_message})")
         socketio.emit('message', {
             'username': sender['username'],
             'message': translated_message,
-            'original': message
+            'original': hover_message
         }, to=recipient_sid)
     
     # Send back to sender
@@ -230,7 +241,7 @@ def handle_message(data):
     socketio.emit('message', {
         'username': sender['username'],
         'message': sender_message,
-        'original': message
+        'original': original_message
     }, to=sender_sid)
 
 @socketio.on('disconnect')

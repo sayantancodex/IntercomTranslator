@@ -111,9 +111,6 @@ def on_join(data):
         'username': 'System',
         'message': f"{username} joined in {LANGUAGE_CODES.get(language, 'Unknown')}."
     }, room=room)
-    
-
-
 
     if len(rooms[room]) == 2:
         socketio.emit('message', {
@@ -129,6 +126,46 @@ def on_join(data):
         rooms[room].remove(sid)
         del users[sid]
         logger.debug(f"Rejected {username} (SID: {sid}) from full room {room}")
+
+@socketio.on('change_language')
+def on_change_language(data):
+    sid = request.sid
+    username = data['username']
+    language = data['language']
+    user = users.get(sid, {})
+    room = user.get('room')
+
+    if not room or room not in rooms:
+        logger.error(f"Invalid room {room} for SID {sid}")
+        socketio.emit('message', {
+            'username': 'System',
+            'message': 'Error: Invalid room.'
+        }, to=sid)
+        return
+
+    users[sid]['language'] = language
+    logger.debug(f"User {username} (SID: {sid}) changed language to {language}")
+    socketio.emit('message', {
+        'username': 'System',
+        'message': f"{username} switched to {LANGUAGE_CODES.get(language, 'Unknown')}."
+    }, room=room)
+
+@socketio.on('leave')
+def on_leave():
+    sid = request.sid
+    user = users.get(sid, {})
+    room = user.get('room')
+    if room and room in rooms:
+        rooms[room].remove(sid)
+        socketio.emit('message', {
+            'username': 'System',
+            'message': f"{user.get('username', 'User')} left the chat."
+        }, room=room)
+        if not rooms[room]:
+            del rooms[room]
+        leave_room(room)
+        del users[sid]
+        logger.debug(f"User {user.get('username', 'Unknown')} (SID: {sid}) left room {room}")
 
 @socketio.on('message')
 def handle_message(data):
@@ -189,7 +226,7 @@ def handle_message(data):
     
     # Send back to sender
     sender_message = message if sender_lang == 'en' else processed_message
-    logger.debug(f"Sending tetteo sender {sender['username']} (SID: {sender_sid}, Lang: {sender_lang}): {sender_message}")
+    logger.debug(f"Sending to sender {sender['username']} (SID: {sender_sid}, Lang: {sender_lang}): {sender_message}")
     socketio.emit('message', {
         'username': sender['username'],
         'message': sender_message,

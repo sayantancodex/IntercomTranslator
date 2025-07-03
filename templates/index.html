@@ -9,80 +9,128 @@
   <style>
     /* Custom scrollbar */
     #chat::-webkit-scrollbar {
-      width: 6px;
+      width: 8px;
     }
     #chat {
       scrollbar-width: thin;
-      scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+      scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
     }
     #chat::-webkit-scrollbar-track {
       background: transparent;
     }
     #chat::-webkit-scrollbar-thumb {
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 3px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
     }
     #chat::-webkit-scrollbar-thumb:hover {
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.4);
     }
 
-    /* WhatsApp-inspired message bubbles */
+    /* Message bubbles */
     .sent {
-      background-color: #DCF8C6;
-      color: #000;
-      border-radius: 10px 10px 0 10px;
+      background: linear-gradient(to bottom, #34d399, #6ee7b7);
+      color: #1f2937;
+      border-radius: 12px 12px 2px 12px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .sent:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
     }
     .received {
-      background-color: #a2ffdc;
-      color: #000;
-      border-radius: 10px 10px 10px 0;
+      background: linear-gradient(to bottom, #f3f4f6, #e5e7eb);
+      color: #1f2937;
+      border-radius: 12px 12px 12px 2px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .received:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
     }
 
-    /* Fade transition for screens */
+    /* Screen transitions */
     .screen {
-      transition: opacity 0.3s ease-in-out;
+      transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+      transform: translateY(0);
     }
-
     .hidden {
       opacity: 0;
+      transform: translateY(20px);
       display: none;
+    }
+
+    /* Message animation */
+    .message {
+      animation: slideIn 0.3s ease-out;
+    }
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Button and input effects */
+    button {
+      transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+    button:hover {
+      transform: scale(1.05);
+    }
+    input:focus, select:focus {
+      box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.3);
+      border-color: #14b8a6;
     }
   </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col font-sans">
+<body class="bg-gradient-to-br from-gray-100 to-teal-100 min-h-screen flex flex-col font-sans">
 
   <!-- Login Screen -->
-  <div id="login-screen" class="screen w-full max-w-3xl mx-auto bg-white shadow-md flex flex-col h-screen">
-    <div class="bg-teal-600 p-4 flex items-center">
-      <h1 class="text-xl font-semibold text-white">Multilingual Chat</h1>
+  <div id="login-screen" class="screen w-full max-w-3xl mx-auto bg-white rounded-2xl shadow-xl flex flex-col h-screen">
+    <div class="bg-gradient-to-r from-teal-600 to-teal-800 p-4 rounded-t-2xl flex items-center">
+      <h1 class="text-2xl font-bold text-white tracking-tight">Multilingual Chat</h1>
     </div>
-    <div class="flex-1 flex items-center justify-center p-4">
+    <div class="flex-1 flex items-center justify-center p-6">
       <div class="w-full max-w-md">
-        <h2 class="text-2xl font-semibold text-gray-800 mb-6 text-center">Join the Chat</h2>
-        <div class="flex flex-col gap-4">
-          <input type="text" id="username" placeholder="Enter your name" class="p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500">
-          <select id="language" class="p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
+        <h2 class="text-3xl font-bold text-gray-800 mb-8 text-center">Join the Conversation</h2>
+        <div class="flex flex-col gap-5">
+          <input type="text" id="username" placeholder="Enter your name" class="p-4 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50 text-gray-800 placeholder-gray-400 text-lg">
+          <select id="language" class="p-4 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50 text-gray-800 text-lg">
             <option value="en" class="bg-white">English</option>
             <option value="bn" class="bg-white">Bengali</option>
           </select>
-          <button onclick="joinChat()" class="bg-teal-500 text-white px-6 py-3 rounded-full hover:bg-teal-600 transition-all duration-200">Join Chat</button>
+          <button onclick="joinChat()" class="bg-teal-500 text-white px-6 py-4 rounded-full hover:bg-teal-600 transition-all duration-200 text-lg font-semibold">Join Chat</button>
         </div>
       </div>
-    </div>
+</div>
   </div>
 
   <!-- Chat Screen -->
-  <div id="chat-screen" class="screen w-full max-w-3xl mx-auto bg-white shadow-md flex flex-col h-screen hidden">
-    <div class="bg-teal-600 p-4 flex items-center">
-      <h1 class="text-xl font-semibold text-white">WELCOME <span id="myText"></span> </h1>
+  <div id="chat-screen" class="screen w-full max-w-3xl mx-auto bg-white rounded-2xl shadow-xl flex flex-col h-screen hidden">
+    <div class="bg-gradient-to-r from-teal-600 to-teal-800 p-4 rounded-t-2xl flex items-center justify-between">
+      <h1 class="text-xl font-semibold text-white">WELCOME <span id="myText"></span></h1>
+      <div class="flex gap-2">
+        <select id="chat-language" onchange="changeLanguage()" class="p-2 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white text-sm text-gray-800">
+          <option value="en">English</option>
+          <option value="bn">Bengali</option>
+        </select>
+        <button onclick="clearChat()" class="bg-red-500 text-white px-4 py-2 rounded-full hover:bg-red-600 transition-all duration-200 text-sm font-medium">Clear Chat</button>
+        <button onclick="resetToLogin()" class="bg-gray-500 text-white px-4 py-2 rounded-full hover:bg-gray-600 transition-all duration-200 text-sm font-medium">Reset</button>
+      </div>
     </div>
-    <div class="flex-1 p-4 overflow-y-auto" id="chat">
-      <div class="flex justify-center items-center h-full text-gray-500" id="chat-placeholder">Start chatting...</div>
+    <div class="flex-1 p-6 overflow-y-auto bg-gray-50" id="chat">
+      <div class="flex justify-center items-center h-full text-gray-500 text-lg" id="chat-placeholder">Start chatting...</div>
     </div>
-    <div class="p-4 bg-gray-50 border-t border-gray-200">
+    <div class="p-4 bg-gray-100 border-t border-gray-200">
       <div class="flex gap-3">
-        <input type="text" id="message" placeholder="Type a message..." class="flex-1 p-2.5 bg-white border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500">
-        <button onclick="sendMessage()" class="bg-teal-500 text-white px-5 py-2.5 rounded-full hover:bg-teal-600 transition-all duration-200">Send</button>
+        <input type="text" id="message" placeholder="Type a message..." class="flex-1 p-3 bg-white border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500 text-gray-800 placeholder-gray-400 text-lg">
+        <button onclick="sendMessage()" class="bg-teal-500 text-white px-6 py-3 rounded-full hover:bg-teal-600 transition-all duration-200 text-lg font-medium">Send</button>
       </div>
     </div>
   </div>
@@ -100,6 +148,7 @@
         var lan = 'Bengali';
       }
       document.getElementById("myText").innerHTML = username + ", Chosen Language: " + lan;
+      document.getElementById('chat-language').value = language;
       if (username && language) {
         socket.emit('join', { username, language });
         document.getElementById('login-screen').classList.add('hidden');
@@ -109,6 +158,34 @@
       } else {
         alert('Please enter a username and select a language.');
       }
+    }
+
+    function changeLanguage() {
+      language = document.getElementById('chat-language').value;
+      if (language === 'en') {
+        var lan = 'English';
+      } else if (language === 'bn') {
+        var lan = 'Bengali';
+      }
+      document.getElementById("myText").innerHTML = username + ", Chosen Language: " + lan;
+      socket.emit('change_language', { username, language });
+      console.log(`Changed language to ${language}`);
+    }
+
+    function clearChat() {
+      const chat = document.getElementById('chat');
+      chat.innerHTML = '<div class="flex justify-center items-center h-full text-gray-500 text-lg" id="chat-placeholder">Start chatting...</div>';
+      console.log('Chat cleared');
+    }
+
+    function resetToLogin() {
+      socket.emit('leave');
+      document.getElementById('chat-screen').classList.add('hidden');
+      document.getElementById('login-screen').classList.remove('hidden');
+      document.getElementById('username').value = '';
+      document.getElementById('language').value = 'en';
+      clearChat();
+      console.log('Reset to login screen');
     }
 
     function sendMessage() {
@@ -125,22 +202,22 @@
       const isOwnMessage = data.username === username;
 
       const messageDiv = document.createElement('div');
-      messageDiv.className = `message p-3 ${isOwnMessage ? 'sent ml-auto' : 'received mr-auto'} max-w-[70%] mb-2 shadow-sm rounded-lg`;
+      messageDiv.className = `message p-4 ${isOwnMessage ? 'sent ml-auto' : 'received mr-auto'} max-w-[70%] mb-3 shadow-sm`;
 
       const userLine = document.createElement('div');
-      userLine.className = 'font-semibold mb-1';
+      userLine.className = 'font-semibold text-sm mb-1';
       userLine.textContent = `${data.username}:`;
 
       const translatedText = document.createElement('div');
       translatedText.textContent = data.message;
-      translatedText.classList.add('translated');
+      translatedText.classList.add('translated', 'text-base');
 
       const originalText = document.createElement('div');
       originalText.textContent = data.original || data.message;
-      originalText.classList.add('original', 'hidden');
+      originalText.classList.add('original', 'hidden', 'text-sm', 'italic', 'text-gray-600');
 
       const toggleBtn = document.createElement('button');
-      toggleBtn.className = 'text-sm text-blue-600 mt-2 hover:underline focus:outline-none';
+      toggleBtn.className = 'text-xs text-teal-600 mt-2 hover:underline focus:outline-none';
       toggleBtn.textContent = 'Show Original';
 
       toggleBtn.onclick = () => {

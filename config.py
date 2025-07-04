@@ -1,4 +1,4 @@
-API_KEY_GEMINI = "AIzaSyBwwlfEgmTddBhMmVcNGqhLdpY6Nc7TzMk"
+API_KEY_GEMINI = ""
 
 
 

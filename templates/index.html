@@ -6,6 +6,35 @@
   <title>Multilingual Chat</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Generate a random room ID
+    function generateRoomId() {
+      return 'room-' + Math.random().toString(36).substr(2, 9);
+    }
+
+    // Copy room ID to clipboard
+    function copyRoomId() {
+      if (roomId) {
+        navigator.clipboard.writeText(roomId).then(() => {
+          const copyButton = document.getElementById('copy-room-id');
+          copyButton.textContent = 'Copied!';
+          copyButton.classList.remove('bg-teal-500', 'hover:bg-teal-600');
+          copyButton.classList.add('bg-teal-700');
+          setTimeout(() => {
+            copyButton.textContent = 'Copy';
+            copyButton.classList.remove('bg-teal-700');
+            copyButton.classList.add('bg-teal-500', 'hover:bg-teal-600');
+          }, 1000);
+          console.log(`Copied room ID: ${roomId}`);
+        }).catch(err => {
+          console.error('Failed to copy room ID:', err);
+          alert('Failed to copy room ID.');
+        });
+      } else {
+        alert('No room ID available.');
+      }
+    }
+  </script>
   <style>
     /* Custom scrollbar */
     #chat::-webkit-scrollbar {
@@ -75,7 +104,6 @@
       background: inherit;
       border-radius: inherit;
       color: #1f2937;
-      font-style: italic;
     }
     .message:hover .translated {
       opacity: 0;
@@ -125,21 +153,45 @@
 </head>
 <body class="bg-gradient-to-br from-gray-100 to-teal-100 min-h-screen flex flex-col font-sans">
 
-  <!-- Login Screen -->
-  <div id="login-screen" class="screen w-full max-w-3xl mx-auto bg-white rounded-2xl shadow-xl flex flex-col h-screen">
+  <!-- Homescreen -->
+  <div id="home-screen" class="screen w-full max-w-3xl mx-auto bg-white rounded-2xl shadow-xl flex flex-col h-screen">
     <div class="bg-gradient-to-r from-teal-600 to-teal-800 p-4 rounded-t-2xl flex items-center">
       <h1 class="text-2xl font-bold text-white tracking-tight">Multilingual Chat</h1>
     </div>
     <div class="flex-1 flex items-center justify-center p-6">
       <div class="w-full max-w-md">
-        <h2 class="text-3xl font-bold text-gray-800 mb-8 text-center">Join the Conversation</h2>
+        <h2 class="text-3xl font-bold text-gray-800 mb-8 text-center">Join or Create a Chat Room</h2>
         <div class="flex flex-col gap-5">
           <input type="text" id="username" placeholder="Enter your name" class="p-4 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50 text-gray-800 placeholder-gray-400 text-lg">
           <select id="language" class="p-4 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50 text-gray-800 text-lg">
             <option value="en" class="bg-white">English</option>
+
+    <!-- ___              _______.     ___   ____    ____  ___      .__   __. .___________.    ___      .__   __.    .______      ___   .___________..______          ___         
+       /   \            /       |    /   \  \   \  /   / /   \     |  \ |  | |           |   /   \     |  \ |  |    |   _  \    /   \  |           ||   _  \        /   \        
+      /  ^  \          |   (----`   /  ^  \  \   \/   / /  ^  \    |   \|  | `---|  |----`  /  ^  \    |   \|  |    |  |_)  |  /  ^  \ `---|  |----`|  |_)  |      /  ^  \       
+     /  /_\  \          \   \      /  /_\  \  \_    _/ /  /_\  \   |  . `  |     |  |      /  /_\  \   |  . `  |    |   ___/  /  /_\  \    |  |     |      /      /  /_\  \      
+    /  _____  \     .----)   |    /  _____  \   |  |  /  _____  \  |  |\   |     |  |     /  _____  \  |  |\   |    |  |     /  _____  \   |  |     |  |\  \----./  _____  \     
+   /__/     \__\    |_______/    /__/     \__\  |__| /__/     \__\ |__| \__|     |__|    /__/     \__\ |__| \__|    | _|    /__/     \__\  |__|     | _| `._____/__/     \__\    
+                                                                                                                                                                                 
+.______   .______        ______    _______   __    __    ______ .___________. __    ______   .__   __.      _______.                                                             
+|   _  \  |   _  \      /  __  \  |       \ |  |  |  |  /      ||           ||  |  /  __  \  |  \ |  |     /       |                                                             
+|  |_)  | |  |_)  |    |  |  |  | |  .--.  ||  |  |  | |  ,----'`---|  |----`|  | |  |  |  | |   \|  |    |   (----`                                                             
+|   ___/  |      /     |  |  |  | |  |  |  ||  |  |  | |  |         |  |     |  | |  |  |  | |  . `  |     \   \                                                                 
+|  |      |  |\  \----.|  `--'  | |  '--'  ||  `--'  | |  `----.    |  |     |  | |  `--'  | |  |\   | .----)   |                                                                
+| _|      | _| `._____| \______/  |_______/  \______/   \______|    |__|     |__|  \______/  |__| \__| |_______/                                                                 
+                                                                                                                                                                                  -->
+
+
+
+
+
             <option value="bn" class="bg-white">Bengali</option>
           </select>
-          <button onclick="joinChat()" class="bg-teal-500 text-white px-6 py-4 rounded-full hover:bg-teal-600 transition-all duration-200 text-lg font-semibold">Join Chat</button>
+          <input type="text" id="room-id" placeholder="Enter room ID to join" class="p-4 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50 text-gray-800 placeholder-gray-400 text-lg">
+          <div class="flex gap-3">
+            <button onclick="joinRoom()" class="flex-1 bg-teal-500 text-white px-6 py-4 rounded-full hover:bg-teal-600 transition-all duration-200 text-lg font-semibold">Join Room</button>
+            <button onclick="createRoom()" class="flex-1 bg-teal-700 text-white px-6 py-4 rounded-full hover:bg-teal-800 transition-all duration-200 text-lg font-semibold">Create Room</button>
+          </div>
         </div>
       </div>
     </div>
@@ -148,14 +200,18 @@
   <!-- Chat Screen -->
   <div id="chat-screen" class="screen w-full max-w-3xl mx-auto bg-white rounded-2xl shadow-xl flex flex-col h-screen hidden">
     <div class="bg-gradient-to-r from-teal-600 to-teal-800 p-4 rounded-t-2xl flex items-center justify-between">
-      <h1 class="text-xl font-semibold text-white">WELCOME <span id="myText"></span></h1>
-      <div class="flex gap-2">
+      <div class="flex items-center gap-2">
+        <h1 class="text-xl font-semibold text-white">Room: <span id="room-id-display"></span></h1>
+        <button id="copy-room-id" onclick="copyRoomId()" class="bg-teal-500 text-white px-3 py-1 rounded-full hover:bg-teal-600 transition-all duration-200 text-sm font-medium">Copy</button>
+      </div>
+      <div class="flex items-center gap-2">
+        <h1 class="text-xl font-semibold text-white"><span id="myText"></span></h1>
         <select id="chat-language" onchange="changeLanguage()" class="p-2 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white text-sm text-gray-800">
           <option value="en">English</option>
           <option value="bn">Bengali</option>
         </select>
         <button onclick="clearChat()" class="bg-red-500 text-white px-4 py-2 rounded-full hover:bg-red-600 transition-all duration-200 text-sm font-medium">Clear Chat</button>
-        <button onclick="resetToLogin()" class="bg-gray-500 text-white px-4 py-2 rounded-full hover:bg-gray-600 transition-all duration-200 text-sm font-medium">Reset</button>
+        <button onclick="resetToHome()" class="bg-gray-500 text-white px-4 py-2 rounded-full hover:bg-gray-600 transition-all duration-200 text-sm font-medium">Leave Room</button>
       </div>
     </div>
     <div class="flex-1 p-6 overflow-y-auto bg-gray-50" id="chat">
@@ -171,28 +227,49 @@
 
   <script>
     const socket = io();
-    let username, language;
+    let username, language, roomId;
 
-    function joinChat() {
+    function joinRoom() {
       username = document.getElementById('username').value;
       language = document.getElementById('language').value;
-      if (language === 'en') {
-        var lan = 'English';
-      } else if (language === 'bn') {
-        var lan = 'Bengali';
+      roomId = document.getElementById('room-id').value;
+      if (username && language && roomId) {
+        socket.emit('join', { username, language, room: roomId });
+      } else {
+        alert('Please enter a username, select a language, and provide a room ID.');
       }
-      document.getElementById("myText").innerHTML = username + ", Chosen Language: " + lan;
-      document.getElementById('chat-language').value = language;
+    }
+
+    function createRoom() {
+      username = document.getElementById('username').value;
+      language = document.getElementById('language').value;
+      roomId = generateRoomId();
       if (username && language) {
-        socket.emit('join', { username, language });
-        document.getElementById('login-screen').classList.add('hidden');
-        document.getElementById('chat-screen').classList.remove('hidden');
-        document.getElementById('chat-placeholder').style.display = 'none';
-        console.log(`Joined chat as ${username} with language ${language}`);
+        socket.emit('join', { username, language, room: roomId });
+        document.getElementById('room-id').value = roomId;
       } else {
         alert('Please enter a username and select a language.');
       }
     }
+
+    socket.on('join_response', (data) => {
+      if (data.success) {
+        if (language === 'en') {
+          var lan = 'English';
+        } else if (language === 'bn') {
+          var lan = 'Bengali';
+        }
+        document.getElementById('myText').innerHTML = `${username}, Language: ${lan}`;
+        document.getElementById('room-id-display').innerHTML = roomId;
+        document.getElementById('chat-language').value = language;
+        document.getElementById('home-screen').classList.add('hidden');
+        document.getElementById('chat-screen').classList.remove('hidden');
+        document.getElementById('chat-placeholder').style.display = 'none';
+        console.log(`Joined room ${roomId} as ${username} with language ${language}`);
+      } else {
+        alert(data.message);
+      }
+    });
 
     function changeLanguage() {
       language = document.getElementById('chat-language').value;
@@ -201,8 +278,8 @@
       } else if (language === 'bn') {
         var lan = 'Bengali';
       }
-      document.getElementById("myText").innerHTML = username + ", Chosen Language: " + lan;
-      socket.emit('change_language', { username, language });
+      document.getElementById('myText').innerHTML = `${username}, Language: ${lan}`;
+      socket.emit('change_language', { username, language, room: roomId });
       console.log(`Changed language to ${language}`);
     }
 
@@ -212,20 +289,21 @@
       console.log('Chat cleared');
     }
 
-    function resetToLogin() {
-      socket.emit('leave');
+    function resetToHome() {
+      socket.emit('leave', { room: roomId });
       document.getElementById('chat-screen').classList.add('hidden');
-      document.getElementById('login-screen').classList.remove('hidden');
+      document.getElementById('home-screen').classList.remove('hidden');
       document.getElementById('username').value = '';
       document.getElementById('language').value = 'en';
+      document.getElementById('room-id').value = '';
       clearChat();
-      console.log('Reset to login screen');
+      console.log('Returned to homescreen');
     }
 
     function sendMessage() {
       const message = document.getElementById('message').value;
       if (message) {
-        socket.emit('message', { username, message, language });
+        socket.emit('message', { username, message, language, room: roomId });
         document.getElementById('message').value = '';
         console.log(`Sent message: ${message}`);
       }

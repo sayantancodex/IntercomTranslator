@@ -7,6 +7,8 @@ import logging
 import re
 import json
 import os
+import google.generativeai as genai
+import config
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key'
@@ -14,6 +16,13 @@ socketio = SocketIO(app, async_mode='eventlet', logger=True, engineio_logger=Tru
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# Configure Gemini API
+GEMINI_API_KEY = config.API_KEY_GEMINI
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+else:
+    logger.warning("Gemini API key not found. Falling back to Google Translator.")
 
 users = {}
 rooms = {}
@@ -65,11 +74,30 @@ def benglish_to_bengali(text):
         logger.error(f"Transliteration error: {e}")
         return text
 
+def translate_with_gemini(text, source_lang, target_lang):
+    if not GEMINI_API_KEY:
+        return None
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        prompt = f"Translate the following {source_lang} text to {target_lang} without any extra talk just give the translation: {text}"
+        response = model.generate_content(prompt)
+        translated_text = response.text.strip()
+        logger.debug(f"Gemini translated '{text}' ({source_lang} -> {target_lang}): '{translated_text}'")
+        return translated_text
+    except Exception as e:
+        logger.error(f"Gemini translation error ({source_lang} -> {target_lang}): {e}")
+        return None
+
 def translate_to_bengali(text):
     if text.lower() in ENGLISH_TO_BENGALI:
         translated_text = ENGLISH_TO_BENGALI[text.lower()]
         logger.debug(f"Translated English '{text}' to '{translated_text}' (from mappings)")
         return translated_text
+    # Try Gemini first
+    translated_text = translate_with_gemini(text, 'English', 'Bengali')
+    if translated_text:
+        return translated_text
+    # Fallback to Google Translator
     try:
         translator = GoogleTranslator(source='en', target='bn')
         translated_text = translator.translate(text)
@@ -80,6 +108,11 @@ def translate_to_bengali(text):
         return text
 
 def translate_to_english(text):
+    # Try Gemini first
+    translated_text = translate_with_gemini(text, 'Bengali', 'English')
+    if translated_text:
+        return translated_text
+    # Fallback to Google Translator
     try:
         translator = GoogleTranslator(source='bn', target='en')
         translated_text = translator.translate(text)
@@ -102,7 +135,7 @@ def on_join(data):
     sid = request.sid
     username = data['username']
     language = data['language']
-    room = 'chat_room'
+    room = data['room']
 
     if sid in users:
         logger.debug(f"User {username} (SID: {sid}) already joined. Updating info.")
@@ -112,6 +145,14 @@ def on_join(data):
             if not rooms[old_room]:
                 del rooms[old_room]
     
+    if room in rooms and len(rooms[room]) >= 2:
+        socketio.emit('join_response', {
+            'success': False,
+            'message': 'Room is full. Only two users allowed.'
+        }, to=sid)
+        logger.debug(f"Rejected {username} (SID: {sid}) from full room {room}")
+        return
+
     users[sid] = {'username': username, 'language': language, 'room': room}
     if room not in rooms:
         rooms[room] = []
@@ -125,28 +166,23 @@ def on_join(data):
         'message': f"{username} joined in {LANGUAGE_CODES.get(language, 'Unknown')}."
     }, room=room)
 
+    socketio.emit('join_response', {
+        'success': True,
+        'message': f"Joined room {room}."
+    }, to=sid)
+
     if len(rooms[room]) == 2:
         socketio.emit('message', {
             'username': 'System',
             'message': 'Chat started! Go ahead and talk.'
         }, room=room)
-    elif len(rooms[room]) > 2:
-        socketio.emit('message', {
-            'username': 'System',
-            'message': "Room's full. Only two users allowed."
-        }, to=sid)
-        leave_room(room)
-        rooms[room].remove(sid)
-        del users[sid]
-        logger.debug(f"Rejected {username} (SID: {sid}) from full room {room}")
 
 @socketio.on('change_language')
 def on_change_language(data):
     sid = request.sid
     username = data['username']
     language = data['language']
-    user = users.get(sid, {})
-    room = user.get('room')
+    room = data['room']
 
     if not room or room not in rooms:
         logger.error(f"Invalid room {room} for SID {sid}")
@@ -164,10 +200,10 @@ def on_change_language(data):
     }, room=room)
 
 @socketio.on('leave')
-def on_leave():
+def on_leave(data):
     sid = request.sid
     user = users.get(sid, {})
-    room = user.get('room')
+    room = data.get('room')
     if room and room in rooms:
         rooms[room].remove(sid)
         socketio.emit('message', {
@@ -178,17 +214,17 @@ def on_leave():
             del rooms[room]
         leave_room(room)
         del users[sid]
-        logger.debug(f"User {user.get('username', 'Unknown')} (SID: {sid}) left room {room}")
+        logger.debug(f"User {user.get('username', 'Unknown')} left room {room}")
 
 @socketio.on('message')
 def handle_message(data):
     sender_sid = request.sid
     sender = users.get(sender_sid, {})
-    room = sender.get('room')
+    room = data.get('room')
     sender_lang = sender.get('language', 'en')
     message = data.get('message', '')
     
-    logger.debug(f"Message from {sender.get('username', 'Unknown')} (SID: {sender_sid}, Lang: {sender_lang}): {message}")
+    logger.debug(f"Message from {sender.get('username', 'Unknown')} (SID: {sender_sid}, Lang: {sender_lang}) in room {room}: {message}")
     
     if not room or room not in rooms:
         logger.error(f"Invalid room {room} for SID {sender_sid}")
@@ -198,11 +234,9 @@ def handle_message(data):
         }, to=sender_sid)
         return
     
-    # Preprocess message
+    # Use raw message without Benglish processing
     processed_message = message
     original_message = message
-    if sender_lang == 'bn' and is_benglish(message):
-        processed_message = benglish_to_bengali(message)
     
     recipient_sids = [sid for sid in rooms[room] if sid != sender_sid]
     if not recipient_sids:
@@ -226,7 +260,7 @@ def handle_message(data):
                 hover_message = original_message  # English original for Bengali recipient
             elif sender_lang == 'bn' and recipient_lang == 'en':
                 translated_message = translate_to_english(processed_message)
-                hover_message = processed_message  # Bengali processed for English recipient
+                hover_message = processed_message  # Original message (including Benglish) for English recipient
         
         logger.debug(f"Sending to {recipient_username} (SID: {recipient_sid}, Lang: {recipient_lang}): {translated_message} (hover: {hover_message})")
         socketio.emit('message', {
@@ -236,7 +270,7 @@ def handle_message(data):
         }, to=recipient_sid)
     
     # Send back to sender
-    sender_message = message if sender_lang == 'en' else processed_message
+    sender_message = message
     logger.debug(f"Sending to sender {sender['username']} (SID: {sender_sid}, Lang: {sender_lang}): {sender_message}")
     socketio.emit('message', {
         'username': sender['username'],
